@@ -22,25 +22,6 @@ class getCameraDataNode(Node):
         #Extract dimensions and create the ROI corners before cropping image to remove horizon line
         height = og_image.shape[0]
         width = og_image.shape[1]
-
-        
-        #Calculating Points for Birds-Eye Transform
-        imgTl = [0,0]
-        imgTr = [width,0]
-        imgBr = [width,height]
-        imgBl = [0,height]
-        img_params = np.float32([imgTl,imgTr,imgBr,imgBl])
-        
-        
-        tl = [0,height/1.8]
-        bl = [0, height/1.2]
-        tr = [width, height/1.8]
-        br = [width, height/1.2]
-        corner_points_array = np.float32([tl,tr,br,bl])
-        
-        #Calculating transformation matrix and applying it to original image
-        matrix = cv2.getPerspectiveTransform(corner_points_array,img_params)
-        og_image = cv2.warpPerspective(og_image,matrix,(width,height))
         
         
         #Calculate thresholds and apply to Canny Edge Detection
@@ -71,15 +52,16 @@ class getCameraDataNode(Node):
         right_line_y = []
         for line in lines:
             for x1, y1, x2, y2 in line:
-                slope = (y2 - y1) / (x2 - x1) # <-- Calculating the slope.
-                if math.fabs(slope) < 0.3: # <-- Only consider extreme slope
-                    continue
-                if slope <= 0: # <-- If the slope is negative, left group.
-                    left_line_x.extend([x1, x2])
-                    left_line_y.extend([y1, y2])
-                else: # <-- Otherwise, right group.
-                    right_line_x.extend([x1, x2])
-                    right_line_y.extend([y1, y2])
+                if (x2 - x1) != 0:
+                    slope = (y2 - y1) / (x2 - x1) # <-- Calculating the slope.
+                    if math.fabs(slope) < 0.3: # <-- Only consider extreme slope
+                        continue
+                    if slope <= 0: # <-- If the slope is negative, left group.
+                        left_line_x.extend([x1, x2])
+                        left_line_y.extend([y1, y2])
+                    else: # <-- Otherwise, right group.
+                        right_line_x.extend([x1, x2])
+                        right_line_y.extend([y1, y2])
         
         #Use utility function to draw Hough Tranform lines onto original image
         #line_image = draw_lines(image, lines) # <---- Add this call.
@@ -109,10 +91,8 @@ class getCameraDataNode(Node):
          
         #extrap_image = cv2.polylines(cv2.cvtColor(og_image.copy(),cv2.COLOR_GRAY2RGB),[left_line], False, [255,0,0], 5)
         extrap_image = cv2.polylines(og_image.copy(),[left_line], False, [255,0,0], 5)
-        extrap_image = cv2.polylines(extrap_image,[right_line], False, [255,0,0], 5)
+        extrap_image = cv2.polylines(extrap_image,[right_line], False, [0,0,255], 5)
         
-        #inv_matrix = np.linalg.pinv(matrix)
-        #extrap_image = cv2.warpPerspective(extrap_image,inv_matrix,(width,height))
 
         cv2.imshow("transformed_image", extrap_image)
         cv2.waitKey(2)
