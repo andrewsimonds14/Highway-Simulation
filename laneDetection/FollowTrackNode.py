@@ -10,8 +10,8 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Float32
 from geometry_msgs.msg import Twist
 
-pid = PID(0.5, 0.01, 0.005, setpoint = np.pi)
-pid.output_limits = (-0.1,0.1)
+pid = PID(0.5, 0.01, 0.005, setpoint = 0)
+pid.output_limits = (-0.5,0.5)
 
 class FollowTrack(Node):
     def __init__(self):
@@ -62,8 +62,8 @@ class FollowTrack(Node):
         left_lines = []
         right_lines = []
         lines_sorted = np.array(sorted(lines, key=lambda x: x[1]))
-        left_bound = np.max(lines_sorted[:20,0])
-        right_bound = np.min(lines_sorted[:20,0])
+        left_bound = np.max(lines_sorted[:10,0])
+        right_bound = np.min(lines_sorted[:10,0])
         for line in lines_sorted:
             if len(left_lines) == 0 and len(right_lines) == 0:
                 if abs(line[0]-left_bound) < abs(line[0]-right_bound):
@@ -97,11 +97,11 @@ class FollowTrack(Node):
         right_points_sorted = sorted(right_points, key=lambda x: x[1])
         return left_points_sorted, right_points_sorted
 
-    def calcPositionError(self, left_points_sorted, right_points_sorted):
+    def calcPositionError(self, left_points_sorted, right_points_sorted, lane_centre):
         '''
         Calculates normalized error between two detected lanes and centre to feed to a PID controller.
         '''
-        if len(left_lines) > 0 and len(right_lines) > 0:
+        if len(left_points_sorted) > 0 and len(right_points_sorted) > 0:
             x_left = left_points_sorted[-1][0]
             x_right = right_points_sorted[-1][0]
             avg_x = (x_left + x_right) / 2
@@ -112,12 +112,13 @@ class FollowTrack(Node):
         return error
 
     def callback(self, ros_msg):
-        cv_image = self.bridge.imgmsg_to_cv2(ros_msg)
-        edge_img = self.prepareImage(cv_image)
+        cv_image = self.bridge.imgmsg_to_cv2(ros_msg,desired_encoding='bgr8')
+        
+        processed_img, lane_centre = self.prepareImage(cv_image)
 
         left_points_sorted, right_points_sorted = self.findLanes(processed_img)
 
-        error = self.calcPositionError(left_points_sorted, right_points_sorted)
+        error = self.calcPositionError(left_points_sorted, right_points_sorted, lane_centre)
         
         
         velocity = Twist()
