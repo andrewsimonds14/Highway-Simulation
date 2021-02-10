@@ -12,6 +12,11 @@ from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 import time
 
+from simple_pid import PID
+
+pid = PID(0.5, 0.01, 0.005, setpoint = 0)
+pid.output_limits = (-0.5,0.5)
+
 
 class followTrackNode(Node):
     def __init__(self):
@@ -19,14 +24,12 @@ class followTrackNode(Node):
         self.bridge = cv_bridge.CvBridge()
         self.image_sub = self.create_subscription(Image, "/camera/image_raw", self.handle_camera_data, 10)
         self.velocity_publisher = self.create_publisher(Twist, "cmd_vel", 10)
-
-        #Define PID weights
-        self.PID = PID.PID(1.2,1.0,0.5)
     
-    def publish_speed(self,linearVel,angularVel):
+    def publish_speed(self,pixelDifference):
+        print(pixelDifference)
         velocity = Twist()
-        velocity.linear.x = linearVel
-        velocity.angular.z = angularVel
+        velocity.linear.x = 0.3
+        velocity.angular.z = pid(pixelDifference/100000)
         self.velocity_publisher.publish(velocity)
 
     def handle_camera_data(self,msg):
@@ -57,6 +60,7 @@ class followTrackNode(Node):
         left_line_y = []
         right_line_x = []
         right_line_y = []
+
 
         for line in lines:
             for x1, y1, x2, y2 in line:
@@ -113,6 +117,8 @@ class followTrackNode(Node):
         br = [right_x_start, max_y]
         bl = [left_x_start, max_y]
         corner_points_array = np.float32([tl,tr,br,bl])
+        print(corner_points_array)
+        time.sleep(2)
 
         matrix = cv2.getPerspectiveTransform(corner_points_array,img_params)
         transformed_image = cv2.warpPerspective(extrapolated_line_image,matrix,(width,height))
@@ -269,30 +275,10 @@ class followTrackNode(Node):
 
         pixelDifference = rightBlackPixelCount - leftBlackPixelCount
 
-        '''
-        #Send in the difference of black pixels which we're trying to get to 0
-        self.PID.SetPoint = 0
-        self.PID.setSampleTime=0.05
-        feedback = pixelDifference
-        print(feedback)
-        for i in range(1,100):
-            self.PID.update(feedback)
-            print('Feedack',feedback)
-            output = self.PID.output
-            feedback += output - (1/i)
-            print(output)
-        '''
-        #Brute force approach until PID makes more sense
-        if pixelDifference > 1000:
-            self.publish_speed(0.3, -0.1)
-            print('Turn right')
-            time.sleep(0.1)
-        if pixelDifference < 1000:
-            self.publish_speed(0.3, 0.1)
-            print('Turn left')
-            time.sleep(0.1)
+        #Send pixelDifference to speed publisher
+        self.publish_speed(pixelDifference)
+
         
-        self.publish_speed(0.3, 0.0)
 
 def main(args=None):
     rclpy.init(args=args)
