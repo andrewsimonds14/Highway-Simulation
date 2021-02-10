@@ -10,7 +10,8 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Float32
 from geometry_msgs.msg import Twist
 
-pid = PID(5, 0.1, 0.5, setpoint = 0)
+pid = PID(0.5, 0.01, 0.005, setpoint = 0)
+pid.output_limits = (-0.5,0.5)
 
 class FollowTrack(Node):
     def __init__(self):
@@ -23,20 +24,21 @@ class FollowTrack(Node):
         self.pub = self.create_publisher(Twist, 'cmd_vel', 1)
         
     def prepareImage(self, img):
+
         '''
         Bird's eye view perspective transform followed by Canny Edge Detection.
-        Return both the edge+transformed image and the transformed original image
+        Return both the edge+transformed image and the target lane centre
         '''
         perspective_mat = cv2.getPerspectiveTransform(
         np.array([[0,354],[288,251],[352,251],[640,354]], dtype="float32"), 
         np.array([[200,480],[200,0],[440,0],[440,480]], dtype="float32"))
-        transform_only_img   = cv2.warpPerspective(img  , perspective_mat, (640,480))
-        img   = cv2.warpPerspective(img  , perspective_mat, (640,480))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        transformed_only_img = cv2.warpPerspective(img  , perspective_mat, (640,480))
+        img = cv2.cvtColor(transformed_only_img.copy(), cv2.COLOR_BGR2GRAY)
         (thresh, img) = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
         img = cv2.blur(img ,(5,5))
         img  = cv2.Canny(img , int(max(0,0.7*np.median(img ))), int(min(255,1.3*np.median(img ))))
-        return img, transform_only_img 
+        lane_centre = img.shape[1]/2
+        return img, transformed_only_img, lane_centre
 
     def findLanes(self, img):
         '''
@@ -47,10 +49,10 @@ class FollowTrack(Node):
         img,
         rho=10,
         theta=np.pi / 60,
-        threshold=10,
+        threshold=150,
         lines=np.array([]),
-        minLineLength=0,
-        maxLineGap=0
+        minLineLength=10,
+        maxLineGap=15
         )
         lines = []
         if _lines is not None:
@@ -61,8 +63,8 @@ class FollowTrack(Node):
         left_lines = []
         right_lines = []
         lines_sorted = np.array(sorted(lines, key=lambda x: x[1]))
-        left_bound = np.max(lines_sorted[:20,0])
-        right_bound = np.min(lines_sorted[:20,0])
+        left_bound = np.max(lines_sorted[:10,0])
+        right_bound = np.min(lines_sorted[:10,0])
         for line in lines_sorted:
             if len(left_lines) == 0 and len(right_lines) == 0:
                 if abs(line[0]-left_bound) < abs(line[0]-right_bound):
@@ -84,50 +86,67 @@ class FollowTrack(Node):
                     left_lines.append(line)
                 else:
                     right_lines.append(line)
-        left_points = []
-        right_points = []
+
+        left_points_x = []
+        left_points_y = []
+        right_points_x = []
+        right_points_y = []
         for i in left_lines:
-            left_points.append([i[0], i[1]])
-            left_points.append([i[2], i[3]])
+            left_points_x.extend([i[0], i[2]])
+            left_points_y.extend([i[1], i[3]])
         for i in right_lines:
-            right_points.append([i[0], i[1]])
-            right_points.append([i[2], i[3]])
-        left_points_sorted = sorted(left_points, key=lambda x: x[1])
-        right_points_sorted = sorted(right_points, key=lambda x: x[1])
-        return left_points_sorted, right_points_sorted
+            right_points_x.extend([i[0], i[2]])
+            right_points_y.extend([i[1], i[3]])
 
-    def calcPositionError(self, left_lines, right_lines,img):
-        if len(left_lines) > 0 and len(right_lines) > 0:
-            x_left = left_lines[-1][0]
-            x_right = right_lines[-1][0]
-            avg_x = (x_left + x_right) / 2
-            lane_centre = img.shape[1]/2
-            x_error = (avg_x - lane_centre) / lane_centre
-            error = pid(x_error)
-            cv2.line(img, (int(x_left), 280), (int(x_left), 480), (255,0,0), 3, cv2.LINE_AA)
-            cv2.line(img, (int(x_right), 280), (int(x_right), 480), (0,0,255), 3, cv2.LINE_AA)
-            cv2.line(img, (int(img.shape[1]/2 - error * 200), 380), (int(img.shape[1]/2), 480), (0,255,0), 3, cv2.LINE_AA)
-            return error, img
-        else:
-            error = 0
-            return error, img
-        
+
+
+        poly_left = np.poly1d(np.polyfit(left_points_y, left_points_x, deg=3))
+
+        poly_right = np.poly1d(np.polyfit(right_points_y,right_points_x,deg=3))
+
+
+        return poly_left, poly_right
+    
+    
+    def showLanes(self, poly_left, poly_right, img):
+        max_y = img.shape[0]
+        print(max_y)
+        y = np.linspace(0, max_y)
+
+        start_centre = img.shape[1] / 2
+        start_left = np.polyval(poly_left, max_y)
+        start_right = np.polyval(poly_right, max_y)
+        avg_start = (start_left+start_right)/2
+        error = (avg_start - start_centre) / start_centre
+
+
+        left_line = np.array(list(zip(np.polyval(poly_left, y),y)), np.int32)
+        right_line = np.array(list(zip(np.polyval(poly_right, y),y)), np.int32)
+
+        img = cv2.polylines(img,[left_line], False, [255,0,0], 5)
+        img = cv2.polylines(img,[right_line], False, [0,0,255], 5)
+        img = cv2.line(img, (int(avg_start), 0), (int(avg_start), max_y), (0,255,0), 5, cv2.LINE_AA)
+    
+    
+    
+        return img, error
+
     def callback(self, ros_msg):
-        img = self.bridge.imgmsg_to_cv2(ros_msg,desired_encoding='bgr8')
-        
-        edge_img, transform_only_img = self.prepareImage(img)
+        cv_image = self.bridge.imgmsg_to_cv2(ros_msg,desired_encoding='bgr8')
 
-        left_points_sorted, right_points_sorted = self.findLanes(edge_img)
+        processed_img, transformed_img, lane_centre = self.prepareImage(cv_image)
 
-        error, transform_only_img = self.calcPositionError(left_points_sorted, right_points_sorted, transform_only_img)
-        
-        cv2.imshow("Lanes Detected Image", transform_only_img)
-        cv2.waitKey(2)
+        poly_left, poly_right = self.findLanes(processed_img)
+
+        extrap_img, error = self.showLanes(poly_left, poly_right, transformed_img)
         
         velocity = Twist()
-        velocity.linear.x = 1.0
-        velocity.angular.z = error
+        velocity.linear.x = 0.2
+        velocity.angular.z = pid(error)
         self.pub.publish(velocity)
+        
+        cv2.imshow("Lanes Detected Image", extrap_img)
+        cv2.waitKey(2)
 
             
 
