@@ -10,7 +10,7 @@ from simple_pid import PID
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 
-pid = PID(5, 0.1, 0.5, setpoint = 0)
+pid = PID(3, 0.1, 0.5, setpoint = 0)
 
 class FollowTrack(Node):
     def __init__(self):
@@ -114,6 +114,8 @@ class FollowTrack(Node):
         
     def callback(self, ros_msg):
         img = self.bridge.imgmsg_to_cv2(ros_msg,desired_encoding='bgr8')
+        # Normalizing for all computers to have same initial dimensions
+        img = cv2.resize(img, (640,480))
         
         edge_img, transform_only_img = self.prepareImage(img)
 
@@ -125,7 +127,7 @@ class FollowTrack(Node):
         cv2.waitKey(1)
         
         velocity = Twist()
-        velocity.linear.x = 0.8
+        velocity.linear.x = 0.4
         velocity.angular.z = error
         self.pub.publish(velocity)
 
