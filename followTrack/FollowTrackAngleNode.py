@@ -27,7 +27,7 @@ class FollowTrackAngleNode(Node):
     def publish_speed(self,angleError):
         velocity = Twist()
         velocity.linear.x = 0.1
-        velocity.angular.z = -pid(angleError)
+        velocity.angular.z = pid(angleError)
         print('Current Velocity: ',velocity.angular.z)
         self.velocity_publisher.publish(velocity)
 

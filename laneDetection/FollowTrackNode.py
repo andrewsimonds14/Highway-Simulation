@@ -1,3 +1,4 @@
+#ros2 launch turtlebot3_gazebo turtlebot3_road.launch.py
 import numpy as np
 import cv2
 from cv_bridge import CvBridge
@@ -7,7 +8,6 @@ import math
 from simple_pid import PID
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32
 from geometry_msgs.msg import Twist
 
 pid = PID(5, 0.1, 0.5, setpoint = 0)
@@ -122,10 +122,10 @@ class FollowTrack(Node):
         error, transform_only_img = self.calcPositionError(left_points_sorted, right_points_sorted, transform_only_img)
         
         cv2.imshow("Lanes Detected Image", transform_only_img)
-        cv2.waitKey(2)
+        cv2.waitKey(1)
         
         velocity = Twist()
-        velocity.linear.x = 1.0
+        velocity.linear.x = 0.8
         velocity.angular.z = error
         self.pub.publish(velocity)
 
