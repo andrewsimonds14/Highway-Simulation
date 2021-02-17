@@ -18,9 +18,15 @@ class FollowTrack(Node):
 
         self.bridge = CvBridge()
 
+        self.velocity_sub = self.create_subscription(Twist, '/cmd_vel', self.get_speed, 5) 
         self.sub = self.create_subscription(Image, '/camera/image_raw', self.callback, 5)
         
         self.pub = self.create_publisher(Twist, 'cmd_vel', 1)
+
+        self.linearVel = 0.0
+
+    def get_speed(self,msg):
+        self.linearVel = msg.linear.x
         
     def prepareImage(self, img):
         '''
@@ -127,7 +133,9 @@ class FollowTrack(Node):
         cv2.waitKey(1)
         
         velocity = Twist()
-        velocity.linear.x = 0.4
+        # Use self.linearVel if using scanSubscriber too!
+        velocity.linear.x = self.linearVel
+        #velocity.linear.x = 0.4
         velocity.angular.z = error
         self.pub.publish(velocity)
 
