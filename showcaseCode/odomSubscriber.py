@@ -7,11 +7,9 @@ class locationNode(Node):
     def __init__(self):
         super().__init__('location')
         self.location_subscriber = self.create_subscription(Odometry, '/odom', self.publish_pos, 10)
- 
-        self.subscription #prevents unused variable warning
- 
+  
     
-    def publish_pos(msg):
+    def publish_pos(self, msg):
           global x_robot, y_robot
           x_robot = msg.pose.pose.position.x
           y_robot = msg.pose.pose.position.y
