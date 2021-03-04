@@ -12,16 +12,23 @@ from geometry_msgs.msg import Twist
 
 pid = PID(3, 0.1, 0.5, setpoint = 0)
 
+# Figure out what robot to use
+multipleBots = input('More than one robot? (y/n): ')
+if multipleBots == 'y':
+    robotName = '/robot' + str(input('Enter 1 or 2 to determine which robot to use: '))
+else:
+    robotName = ''
+
 class FollowTrack(Node):
     def __init__(self):
         super().__init__('follow_track')
 
         self.bridge = CvBridge()
 
-        self.velocity_sub = self.create_subscription(Twist, '/cmd_vel', self.get_speed, 5) 
-        self.sub = self.create_subscription(Image, '/camera/image_raw', self.callback, 5)
+        self.velocity_sub = self.create_subscription(Twist, '{}/cmd_vel'.format(robotName), self.get_speed, 5) 
+        self.sub = self.create_subscription(Image, '{}/camera/image_raw'.format(robotName), self.callback, 5)
         
-        self.pub = self.create_publisher(Twist, 'cmd_vel', 1)
+        self.pub = self.create_publisher(Twist, '{}/cmd_vel'.format(robotName), 1)
 
         self.linearVel = 0.0
 
