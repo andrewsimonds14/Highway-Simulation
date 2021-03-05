@@ -27,6 +27,8 @@ class FollowDistanceNode(Node):
         super().__init__('followDistance')
         self.scan_subscriber = self.create_subscription(LaserScan, '{}/scan'.format(robotName), self.callback, qos_profile_sensor_data)
         self.velocity_publisher = self.create_publisher(Twist, "{}/cmd_vel".format(robotName), 10)
+        self.update_time = time.time()
+        self.leader_speed_state = 0
 
     def publish_PID_speed(self,distance):
         velocity = Twist()
@@ -38,7 +40,15 @@ class FollowDistanceNode(Node):
     def publish_default_speed(self):
         velocity = Twist()
         if robotName == '/robot1':
-            velocity.linear.x = 0.75
+            # check if ten secs has elapsed
+            if time.time() - self.update_time > 10:
+                self.update_time = time.time()
+                if self.leader_speed_state == 1:
+                    velocity.linear.x = 0.4
+                    self.leader_speed_state = 0
+                else
+                    velocity.linear.x = 0.8
+                    self.leader_speed_state = 1
         else:
             velocity.linear.x = 0.5
         #velocity.linear.x = 0.0
