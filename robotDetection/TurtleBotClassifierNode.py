@@ -8,13 +8,14 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 
+kerasModelPath = input('Please enter the filePath for the h5 file (Example: /home/brock/Documents/TurtleBotClassifer.h5): ')
 
 class getCameraDataNode(Node):
     def __init__(self):
         super().__init__("getCamDataNode")
         self.bridge = cv_bridge.CvBridge()
         self.image_sub = self.create_subscription(Image, "/camera/image_raw", self.handle_camera_data, 10)
-        self.model = keras.models.load_model('/home/brock/Documents/TurtleBotClassifer.h5')
+        self.model = keras.models.load_model(kerasModelPath)
 
     def handle_camera_data(self,msg):
         global perr, ptime, serr, dt
