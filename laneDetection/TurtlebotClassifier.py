@@ -15,14 +15,14 @@ class getCameraDataNode(Node):
         super().__init__("getCamDataNode")
         self.bridge = cv_bridge.CvBridge()
         self.image_sub = self.create_subscription(Image, "/camera/image_raw", self.handle_camera_data, 10)
+        self.model = keras.models.load_model('TurtleBotClassifer.h5')
 
     def handle_camera_data(self,msg):
         global perr, ptime, serr, dt
         img = self.bridge.imgmsg_to_cv2(msg,desired_encoding='passthrough')
-        model = keras.models.load_model('TurtleBotClassifer.h5')
         bot_img = cv2.resize(bot_img,(640,480))
         img = np.expand_dims(bot_img,axis=0)
-        prediction = int(model.predict(img))
+        prediction = int(self.model.predict(img))
         if prediction == 0:
             print('TurtleBot Detected')
         
