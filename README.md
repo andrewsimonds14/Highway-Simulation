@@ -1,5 +1,5 @@
 # Autonomous Highway Simulation
-![TwoBots](/assets/qmindlogo.png)
+![Banner](/assets/qmindBanner.png)
 
 ## QMIND DAIR Highway Simulation Team
 ### By Andrew Simonds, Dylan Moss, Brock MacDonald, Azeem Quadri
@@ -9,7 +9,7 @@ As major automotive companies continue to incorporate new forms of automation to
 
 ## What it does
 The current state of the project allows for lane detection, automated steering, detection of other robots on the highway, and speed corrections dependant on distance of other robots in the vicinity.  
-![TwoBots](/assets/laneDetection.png)
+![Lanes](/assets/laneDetection.png)
 
 ## How we built it
 ### Hardware
