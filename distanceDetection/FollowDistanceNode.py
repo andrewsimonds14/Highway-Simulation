@@ -22,9 +22,9 @@ else:
 # Define the follow distance for a robot to keep
 followDistance = 2.0
 
-class scanNode(Node):
+class FollowDistanceNode(Node):
     def __init__(self):
-        super().__init__('scan')
+        super().__init__('followDistance')
         self.scan_subscriber = self.create_subscription(LaserScan, '{}/scan'.format(robotName), self.callback, qos_profile_sensor_data)
         self.velocity_publisher = self.create_publisher(Twist, "{}/cmd_vel".format(robotName), 10)
 
@@ -78,7 +78,7 @@ class scanNode(Node):
  
 def main(args = None):
         rclpy.init(args=args)
-        node = scanNode()
+        node = FollowDistanceNode()
         rclpy.spin(node)
         rclpy.shutdown()
 if __name__ == "__main__":
