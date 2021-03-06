@@ -29,7 +29,7 @@ else:
 
 
 # Define the follow distance for a robot to keep
-followDistance = 2.0
+followDistance = 2.5
 
 class FollowDistanceNode(Node):
     def __init__(self):
@@ -38,8 +38,9 @@ class FollowDistanceNode(Node):
         self.velocity_publisher = self.create_publisher(Twist, "{}/cmd_vel".format(robotName), 10)
         self.update_time = time.time()
         self.leader_speed_state = 0
+        self.leader_speed = 0.4
         self.bridge = cv_bridge.CvBridge()
-        self.image_sub = self.create_subscription(Image, "/camera/image_raw", self.handle_camera_data, 10)
+        self.image_sub = self.create_subscription(Image, "{}/camera/image_raw".format(robotName), self.handle_camera_data, 10)
         self.model = keras.models.load_model(kerasModelPath)
 
     def handle_camera_data(self,msg):
@@ -66,14 +67,13 @@ class FollowDistanceNode(Node):
             # check if ten secs has elapsed
             if time.time() - self.update_time > 10:
                 self.update_time = time.time()
-                if self.leader_speed_state == 1:
-                    velocity.linear.x = 0.4
-                    self.leader_speed_state = 0
+                if self.leader_speed == 0.7:
+                    self.leader_speed = 0.4
                 else:
-                    velocity.linear.x = 0.8
-                    self.leader_speed_state = 1
+                    self.leader_speed = 0.7
+            velocity.linear.x = self.leader_speed
         else:
-            velocity.linear.x = 0.5
+            velocity.linear.x = 0.6
         #velocity.linear.x = 0.0
         velocity.angular.z = 0.0
         self.velocity_publisher.publish(velocity)
@@ -89,8 +89,6 @@ class FollowDistanceNode(Node):
                 pidActive = True
                 break
             else:
-                print(angle)
-                #time.sleep(1)
                 if angle == 0:
                     angle = angle + 1
                 elif angle < 30:
