@@ -57,6 +57,7 @@ class FollowDistanceNode(Node):
     def publish_PID_speed(self,distance):
         velocity = Twist()
         velocity.linear.x = pid(followDistance - distance)
+        print('Current Linear Velocity: ',velocity.linear.x)
         #velocity.linear.x = 0.0
         velocity.angular.z = 0.0
         self.velocity_publisher.publish(velocity)
@@ -67,13 +68,14 @@ class FollowDistanceNode(Node):
             # check if ten secs has elapsed
             if time.time() - self.update_time > 10:
                 self.update_time = time.time()
-                if self.leader_speed == 0.7:
-                    self.leader_speed = 0.4
+                if self.leader_speed == 0.5:
+                    self.leader_speed = 0.2
                 else:
-                    self.leader_speed = 0.7
+                    self.leader_speed = 0.5
             velocity.linear.x = self.leader_speed
         else:
-            velocity.linear.x = 0.6
+            velocity.linear.x = 0.4
+        print('Current Linear Velocity: ',velocity.linear.x)
         #velocity.linear.x = 0.0
         velocity.angular.z = 0.0
         self.velocity_publisher.publish(velocity)
