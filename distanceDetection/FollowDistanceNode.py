@@ -7,6 +7,15 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from simple_pid import PID
 import time
+import numpy as np
+import cv2
+import keras
+from keras.models import load_model
+from keras.preprocessing import image
+import cv_bridge
+from sensor_msgs.msg import Image
+
+kerasModelPath = input('Please enter the filePath for the h5 file (Example: /home/brock/Documents/TurtleBotClassifer.h5): ')
 
 # Setting global PID parameters
 pid = PID(0.5, 0.01, 0.005, setpoint = 0)
@@ -29,6 +38,20 @@ class FollowDistanceNode(Node):
         self.velocity_publisher = self.create_publisher(Twist, "{}/cmd_vel".format(robotName), 10)
         self.update_time = time.time()
         self.leader_speed_state = 0
+        self.bridge = cv_bridge.CvBridge()
+        self.image_sub = self.create_subscription(Image, "/camera/image_raw", self.handle_camera_data, 10)
+        self.model = keras.models.load_model(kerasModelPath)
+
+    def handle_camera_data(self,msg):
+        # global perr, ptime, serr, dt
+        bot_img = self.bridge.imgmsg_to_cv2(msg,desired_encoding='passthrough')
+        bot_img = cv2.resize(bot_img,(640,480))
+        img = np.expand_dims(bot_img,axis=0)
+        prediction = int(self.model.predict(img))
+        if prediction == 0:
+            print('TurtleBot Detected')
+        if prediction != 0:
+            print('No TurtleBot Detected')
 
     def publish_PID_speed(self,distance):
         velocity = Twist()
@@ -46,7 +69,7 @@ class FollowDistanceNode(Node):
                 if self.leader_speed_state == 1:
                     velocity.linear.x = 0.4
                     self.leader_speed_state = 0
-                else
+                else:
                     velocity.linear.x = 0.8
                     self.leader_speed_state = 1
         else:
